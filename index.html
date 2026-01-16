@@ -951,120 +951,141 @@
         });
 
         function askCustomQuestion() {
-            if (!secretCard) {
-                alert('Please start a game first!');
-                return;
-            }
+    if (!secretCard) {
+        alert('Please start a game first!');
+        return;
+    }
+    
+    if (remainingCards.length === 1) {
+        alert('Only one card remains! Reveal it to see if you found the secret card.');
+        return;
+    }
+    
+    const questionType = document.getElementById('questionType').value;
+    let answer = false;
+    let newEliminated = [];
+    let questionText = document.getElementById('previewText').textContent;
+    
+    questionCount++;
+    const beforeCount = remainingCards.length;
+    
+    // Determine answer and eliminate cards based on question type
+    if (questionType === 'color') {
+        const color = document.getElementById('colorValue').value;
+        answer = secretCard.color === color;
+        // If answer is YES, keep cards with this color (eliminate opposite color)
+        // If answer is NO, keep cards with opposite color (eliminate this color)
+        newEliminated = remainingCards.filter(c => answer ? c.color !== color : c.color === color);
+        
+    } else if (questionType === 'suit') {
+        const suit = document.getElementById('suitValue').value;
+        answer = secretCard.suit === suit;
+        // If YES, eliminate non-suit cards; if NO, eliminate suit cards
+        newEliminated = remainingCards.filter(c => answer ? c.suit !== suit : c.suit === suit);
+        
+    } else if (questionType === 'face') {
+        const faceValue = document.getElementById('faceValue').value;
+        const isFaceCard = (faceValue === 'yes');
+        answer = secretCard.isFace === isFaceCard;
+        // If YES, eliminate non-face cards; if NO, eliminate face cards
+        newEliminated = remainingCards.filter(c => answer ? c.isFace !== isFaceCard : c.isFace === isFaceCard);
+        
+    } else if (questionType === 'rank') {
+        const rank = document.getElementById('rankValue').value;
+        answer = secretCard.rank === rank;
+        // If YES, eliminate cards that aren't this rank; if NO, eliminate cards that are this rank
+        newEliminated = remainingCards.filter(c => answer ? c.rank !== rank : c.rank === rank);
+        
+    } else if (questionType === 'comparison') {
+        const operator = document.getElementById('comparisonOperator').value;
+        const value = parseInt(document.getElementById('comparisonValue').value);
+        
+        if (operator === 'above') {
+            answer = secretCard.value > value;
+            // If YES (card is above value), eliminate cards <= value
+            // If NO (card is not above value), eliminate cards > value
+            newEliminated = remainingCards.filter(c => answer ? c.value <= value : c.value > value);
             
-            if (remainingCards.length === 1) {
-                alert('Only one card remains! Reveal it to see if you found the secret card.');
-                return;
-            }
+        } else if (operator === 'below') {
+            answer = secretCard.value < value;
+            // If YES (card is below value), eliminate cards >= value
+            // If NO (card is not below value), eliminate cards < value
+            newEliminated = remainingCards.filter(c => answer ? c.value >= value : c.value < value);
             
-            const questionType = document.getElementById('questionType').value;
-            let answer = false;
-            let newEliminated = [];
-            let questionText = document.getElementById('previewText').textContent;
+        } else if (operator === 'atLeast') {
+            answer = secretCard.value >= value;
+            // If YES (card is at least value), eliminate cards < value
+            // If NO (card is less than value), eliminate cards >= value
+            newEliminated = remainingCards.filter(c => answer ? c.value < value : c.value >= value);
             
-            questionCount++;
-            const beforeCount = remainingCards.length;
-            
-            // Determine answer and eliminate cards based on question type
-            if (questionType === 'color') {
-                const color = document.getElementById('colorValue').value;
-                answer = secretCard.color === color;
-                newEliminated = remainingCards.filter(c => c.color !== color);
-            } else if (questionType === 'suit') {
-                const suit = document.getElementById('suitValue').value;
-                answer = secretCard.suit === suit;
-                newEliminated = remainingCards.filter(c => c.suit !== suit);
-            } else if (questionType === 'face') {
-                const faceValue = document.getElementById('faceValue').value;
-                answer = (faceValue === 'yes') === secretCard.isFace;
-                newEliminated = remainingCards.filter(c => c.isFace !== (faceValue === 'yes'));
-            } else if (questionType === 'rank') {
-                const rank = document.getElementById('rankValue').value;
-                answer = secretCard.rank === rank;
-                newEliminated = remainingCards.filter(c => c.rank !== rank);
-            } else if (questionType === 'comparison') {
-                const operator = document.getElementById('comparisonOperator').value;
-                const value = parseInt(document.getElementById('comparisonValue').value);
-                
-                if (operator === 'above') {
-                    answer = secretCard.value > value;
-                    newEliminated = remainingCards.filter(c => c.value <= value);
-                } else if (operator === 'below') {
-                    answer = secretCard.value < value;
-                    newEliminated = remainingCards.filter(c => c.value >= value);
-                } else if (operator === 'atLeast') {
-                    answer = secretCard.value >= value;
-                    newEliminated = remainingCards.filter(c => c.value < value);
-                } else if (operator === 'atMost') {
-                    answer = secretCard.value <= value;
-                    newEliminated = remainingCards.filter(c => c.value > value);
-                }
-            }
-            
-            // Update remaining and eliminated cards
-            eliminatedCards = [...eliminatedCards, ...newEliminated];
-            remainingCards = remainingCards.filter(c => !newEliminated.some(e => e.id === c.id));
-            
-            const afterCount = remainingCards.length;
-            const bitsGained = afterCount > 0 ? Math.log2(beforeCount / afterCount) : Math.log2(beforeCount);
-            totalBits += bitsGained;
-            
-            // Create detailed calculation display
-            const calcDetail = `
-                <div class="calculation-detail">
-                    <strong>📐 Detailed Calculation:</strong><br><br>
-                    <strong>Before this question:</strong> ${beforeCount} cards remaining<br>
-                    <strong>After this answer:</strong> ${afterCount} cards remaining<br>
-                    <strong>Cards eliminated:</strong> ${newEliminated.length} cards<br><br>
-                    <strong>Information Gained:</strong><br>
-                    I = log₂(N_before / N_after)<br>
-                    I = log₂(${beforeCount} / ${afterCount})<br>
-                    I = log₂(${(beforeCount/afterCount).toFixed(3)})<br>
-                    I = <span class="highlight">${bitsGained.toFixed(3)} bits</span><br><br>
-                    <em>${bitsGained >= 0.95 ? '✅ Excellent! Nearly optimal 1-bit question' : 
-                         bitsGained >= 0.7 ? '👍 Good question with decent information' :
-                         bitsGained >= 0.4 ? '⚠️ Moderate - consider more balanced questions' :
-                         '❌ Sub-optimal - this question eliminated very few cards'}</em>
-                </div>
-            `;
-            
-            const logClass = answer ? 'question-log' : 'question-log no-answer';
-            document.getElementById('output').innerHTML += `
-                <div class="${logClass}">
-                    <strong style="font-size: 1.1em;">Q${questionCount}: ${questionText}</strong><br>
-                    <div style="margin: 10px 0; padding: 10px; background: ${answer ? '#c8e6c9' : '#ffcdd2'}; border-radius: 5px;">
-                        <strong>Answer: ${answer ? '✅ YES' : '❌ NO'}</strong>
-                    </div>
-                    ${calcDetail}
-                    <div style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 5px;">
-                        <strong>📊 Current State:</strong><br>
-                        Remaining possibilities: <strong>${afterCount}</strong> cards<br>
-                        Cumulative information: <strong>${totalBits.toFixed(2)}</strong> bits<br>
-                        Information still needed: <strong>${afterCount > 0 ? (Math.log2(afterCount)).toFixed(2) : '0.00'}</strong> bits<br>
-                        Theoretical questions remaining: <strong>${afterCount > 0 ? Math.ceil(Math.log2(afterCount)) : 0}</strong> questions
-                    </div>
-                </div>
-            `;
-            
-            updateStats();
-            displayAllCards();
-            
-            // Check win condition
-            if (remainingCards.length === 1) {
-                setTimeout(() => {
-                    document.getElementById('output').innerHTML += `
-                        <div class="question-log" style="background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); border-left: 5px solid #f9a825;">
-                            <h3 style="color: #333;">🎉 Only ONE card remains!</h3>
-                            <p style="font-size: 1.1em;">Click "Reveal Secret Card" to see if you found it!</p>
-                        </div>
-                    `;
-                }, 500);
-            }
+        } else if (operator === 'atMost') {
+            answer = secretCard.value <= value;
+            // If YES (card is at most value), eliminate cards > value
+            // If NO (card is greater than value), eliminate cards <= value
+            newEliminated = remainingCards.filter(c => answer ? c.value > value : c.value <= value);
         }
+    }
+    
+    // Update remaining and eliminated cards
+    eliminatedCards = [...eliminatedCards, ...newEliminated];
+    remainingCards = remainingCards.filter(c => !newEliminated.some(e => e.id === c.id));
+    
+    const afterCount = remainingCards.length;
+    const bitsGained = afterCount > 0 ? Math.log2(beforeCount / afterCount) : Math.log2(beforeCount);
+    totalBits += bitsGained;
+    
+    // Create detailed calculation display
+    const calcDetail = `
+        <div class="calculation-detail">
+            <strong>📐 Detailed Calculation:</strong><br><br>
+            <strong>Before this question:</strong> ${beforeCount} cards remaining<br>
+            <strong>After this answer:</strong> ${afterCount} cards remaining<br>
+            <strong>Cards eliminated:</strong> ${newEliminated.length} cards<br><br>
+            <strong>Information Gained:</strong><br>
+            I = log₂(N_before / N_after)<br>
+            I = log₂(${beforeCount} / ${afterCount})<br>
+            I = log₂(${(beforeCount/afterCount).toFixed(3)})<br>
+            I = <span class="highlight">${bitsGained.toFixed(3)} bits</span><br><br>
+            <em>${bitsGained >= 0.95 ? '✅ Excellent! Nearly optimal 1-bit question' : 
+                 bitsGained >= 0.7 ? '👍 Good question with decent information' :
+                 bitsGained >= 0.4 ? '⚠️ Moderate - consider more balanced questions' :
+                 '❌ Sub-optimal - this question eliminated very few cards'}</em>
+        </div>
+    `;
+    
+    const logClass = answer ? 'question-log' : 'question-log no-answer';
+    document.getElementById('output').innerHTML += `
+        <div class="${logClass}">
+            <strong style="font-size: 1.1em;">Q${questionCount}: ${questionText}</strong><br>
+            <div style="margin: 10px 0; padding: 10px; background: ${answer ? '#c8e6c9' : '#ffcdd2'}; border-radius: 5px;">
+                <strong>Answer: ${answer ? '✅ YES' : '❌ NO'}</strong>
+            </div>
+            ${calcDetail}
+            <div style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 5px;">
+                <strong>📊 Current State:</strong><br>
+                Remaining possibilities: <strong>${afterCount}</strong> cards<br>
+                Cumulative information: <strong>${totalBits.toFixed(2)}</strong> bits<br>
+                Information still needed: <strong>${afterCount > 0 ? (Math.log2(afterCount)).toFixed(2) : '0.00'}</strong> bits<br>
+                Theoretical questions remaining: <strong>${afterCount > 0 ? Math.ceil(Math.log2(afterCount)) : 0}</strong> questions
+            </div>
+        </div>
+    `;
+    
+    updateStats();
+    displayAllCards();
+    
+    // Check win condition
+    if (remainingCards.length === 1) {
+        setTimeout(() => {
+            document.getElementById('output').innerHTML += `
+                <div class="question-log" style="background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); border-left: 5px solid #f9a825;">
+                    <h3 style="color: #333;">🎉 Only ONE card remains!</h3>
+                    <p style="font-size: 1.1em;">Click "Reveal Secret Card" to see if you found it!</p>
+                </div>
+            `;
+        }, 500);
+    }
+}
 
         function revealCard() {
             if (!secretCard) {
@@ -1106,3 +1127,4 @@
     </script>
 </body>
 </html>
+
